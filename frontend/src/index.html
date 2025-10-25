@@ -2,23 +2,48 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>API Explorer</title>
-  <style>
-    body { font-family: Arial, sans-serif; margin: 2rem; }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>API Explorer – Libros</title>
+  <link rel="stylesheet" href="css/styles.css" />
 </head>
 <body>
-  <h1>¡Hola desde el frontend!</h1>
-  <p>Si ves esto, nginx + Docker funcionan.</p>
-  <button id="btn">Probar /api/pokemon/pikachu</button>
-  <pre id="res"></pre>
+  <header>
+    <h1>API Explorer – Libros</h1>
+    <button id="logoutBtn" class="logout" style="display:none;">Cerrar sesión</button>
+  </header>
 
-  <script>
-    btn.onclick = async () => {
-      const r = await fetch('/api/pokemon/pikachu');
-      const j = await r.json();
-      res.textContent = JSON.stringify(j, null, 2);
-    };
-  </script>
+  <main>
+    <!-- Login -->
+    <section id="login" class="box">
+      <h2>Iniciar sesión</h2>
+      <input id="userInput" type="text" placeholder="Usuario" />
+      <input id="passInput" type="password" placeholder="Contraseña" />
+      <button id="loginBtn">Entrar</button>
+    </section>
+
+    <!-- 3 tarjetas aleatorias -->
+    <section id="cards" class="cards-container" style="display:none;"></section>
+
+    <!-- Buscador abajo -->
+    <section id="finder" class="box" style="display:none;">
+      <h2>Buscar libro</h2>
+      <div class="finder-row">
+        <input id="titleInput" type="text" placeholder="Título del libro…" />
+        <button id="searchBtn">Buscar</button>
+      </div>
+    </section>
+
+    <!-- Resultado individual -->
+    <div id="result" style="display:none;"></div>
+
+    <!-- Historial temporal -->
+    <section id="history" class="box" style="display:none;">
+      <h2>Historial de búsquedas</h2>
+      <button id="clearBtn">Limpiar historial</button>
+      <div id="historyList"></div>
+    </section>
+  </main>
+
+  <script src="js/main.js"></script>
 </body>
 </html>
