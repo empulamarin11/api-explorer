@@ -1,32 +1,41 @@
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from pymongo import MongoClient
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, Text
+from sqlalchemy.orm import declarative_base, sessionmaker
 from datetime import datetime
 import os
 
-# ---------- Conexión a MongoDB ----------
-client = MongoClient(
-    host=os.getenv("MONGO_HOST"),
-    port=int(os.getenv("MONGO_PORT")),
-    username=os.getenv("MONGO_USER"),
-    password=os.getenv("MONGO_PASS"),
-    authSource=os.getenv("MONGO_DB")
-)
-db = client[os.getenv("MONGO_DB")]
-users_collection = db["users"]
-searches_collection = db["searches"]
+# ---------- Conexión a PostgreSQL ----------
+DATABASE_URL = f"postgresql://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASS')}@{os.getenv('POSTGRES_HOST')}:{os.getenv('POSTGRES_PORT')}/{os.getenv('POSTGRES_DB')}"
+engine = create_engine(DATABASE_URL, echo=False)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
 
-# ---------- Modelos ----------
-class LoginRequest(BaseModel):
-    username: str
-    password: str
+# ---------- Modelos SQL (tablas) ----------
+class User(Base):
+    __tablename__ = "users"
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String(50), unique=True, index=True)
+    password = Column(String(255))
+    logged_at = Column(DateTime, default=datetime.utcnow)
 
-class SearchRequest(BaseModel):
-    title: str
+class Search(Base):
+    __tablename__ = "searches"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String(200), nullable=False)
+    book_title = Column(String(200))
+    book_authors = Column(Text)
+    book_image = Column(Text)
+    book_desc_short = Column(Text)
+    book_desc_long = Column(Text)
+    searched_at = Column(DateTime, default=datetime.utcnow)
+
+# ---------- Crear tablas (si no existen) ----------
+Base.metadata.create_all(bind=engine)
 
 # ---------- FastAPI app ----------
-app = FastAPI(title="API Explorer – Books + MongoDB", version="0.4.0")
+app = FastAPI(title="API Explorer – Books + PostgreSQL", version="0.5.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -36,20 +45,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ---------- Modelos Pydantic ----------
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class SearchRequest(BaseModel):
+    title: str
+
+# ---------- Endpoints ----------
 @app.get("/")
 def read_root():
-    return {"message": "Backend conectado a MongoDB 🎉"}
+    return {"message": "Backend conectado a PostgreSQL 🐘"}
 
-# ---------- Login (guarda en BD) ----------
 @app.post("/login")
 def login(data: LoginRequest):
-    if data.username != "admin" or data.password != "admin":
+    if data.username != os.getenv("POSTGRES_USER") or data.password != os.getenv("POSTGRES_PASS"):
         raise HTTPException(status_code=401, detail="Credenciales incorrectas")
-    user = {"username": data.username, "loggedAt": datetime.utcnow()}
-    users_collection.insert_one(user)
-    return {"message": "Login exitoso", "userId": str(user["_id"])}
+    with SessionLocal() as db:
+        user = User(username=data.username, password=data.password, logged_at=datetime.utcnow())
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    return {"message": "Login exitoso", "userId": user.id}
 
-# ---------- Búsqueda de libro + guardado ----------
 @app.post("/search")
 async def search_book(data: SearchRequest):
     # Llamar a Google Books API
@@ -73,21 +92,46 @@ async def search_book(data: SearchRequest):
         "description_long": description,
     }
 
-    # Guardar búsqueda en BD
-    search = {
-        "title": data.title,
-        "book": book,
-        "searchedAt": datetime.utcnow()
-    }
-    searches_collection.insert_one(search)
+    # Guardar búsqueda en PostgreSQL
+    with SessionLocal() as db:
+        search = Search(
+            title=data.title,
+            book_title=book["title"],
+            book_authors=", ".join(book["authors"]),
+            book_image=book["image"],
+            book_desc_short=book["description_short"],
+            book_desc_long=book["description_long"],
+            searched_at=datetime.utcnow()
+        )
+        db.add(search)
+        db.commit()
+        db.refresh(search)
 
     return book
 
-# ---------- Ver datos en BD (para tu profesor) ----------
+# ---------- Ver datos en PostgreSQL (para tu profesor) ----------
 @app.get("/data/users")
 def get_users():
-    return list(users_collection.find({}, {"_id": 0}))
+    with SessionLocal() as db:
+        users = db.query(User).all()
+    return [{"id": u.id, "username": u.username, "logged_at": u.logged_at.isoformat()} for u in users]
 
 @app.get("/data/searches")
 def get_searches():
-    return list(searches_collection.find({}, {"_id": 0}))
+    with SessionLocal() as db:
+        searches = db.query(Search).all()
+    return [
+        {
+            "id": s.id,
+            "title": s.title,
+            "book": {
+                "title": s.book_title,
+                "authors": s.book_authors,
+                "image": s.book_image,
+                "description_short": s.book_desc_short,
+                "description_long": s.book_desc_long,
+            },
+            "searched_at": s.searched_at.isoformat(),
+        }
+        for s in searches
+    ]
