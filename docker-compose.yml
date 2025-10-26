@@ -4,7 +4,7 @@ services:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: postgres
+      POSTGRES_DB: explorer
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: erick123
     volumes:
