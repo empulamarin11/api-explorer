@@ -8,17 +8,17 @@ const cardsSection = document.getElementById('cards');
 const finderSection = document.getElementById('finder');
 const historySection = document.getElementById('history');
 
-let currentUserId = null;   // user_id real devuelto por el backend
+let currentUserId = null;   // user_id real returned by the backend
 
 loginBtn.onclick = async () => {
   const user = userInput.value.trim();
   const pass = passInput.value.trim();
-  if (!user || !pass) return alert('Completa ambos campos');
+  if (!user || !pass) return alert('Complete both fields');
 
   try {
     const res = await fetch(`/api/login?username=${encodeURIComponent(user)}&password=${encodeURIComponent(pass)}`, {
   method: 'POST'});
-    if (!res.ok) throw new Error('Credenciales incorrectas');
+    if (!res.ok) throw new Error('Incorrect credentials');
     const data = await res.json();
     currentUserId = data.user_id;          // save real id
     localStorage.setItem('userId', currentUserId);
@@ -52,7 +52,7 @@ function hideApp() {
   historySection.style.display = 'none';
 }
 
-// ---------- 3 tarjetas aleatorias ----------
+// ---------- 3 random cards ----------
 const RANDOM_TITLES = ['el nombre del viento', 'don quijote de la mancha', 'cien años de soledad'];
 
 async function loadRandomCards() {
@@ -94,7 +94,7 @@ function mkCard(book) {
   return div;
 }
 
-// ---------- Buscador individual ----------
+// ----------  search ----------
 const titleInput = document.getElementById('titleInput');
 const searchBtn = document.getElementById('searchBtn');
 const result = document.getElementById('result');
@@ -106,27 +106,27 @@ titleInput.addEventListener('keyup', e => { if (e.key === 'Enter') buscarLibro()
 async function buscarLibro() {
   const titulo = titleInput.value.trim();
   if (!titulo) return;
-  if (!currentUserId) return alert('Inicia sesión primero');
-  result.innerHTML = '<p class="error">Buscando…</p>';
+  if (!currentUserId) return alert('Log in first');
+  result.innerHTML = '<p class="error">Searching…</p>';
   result.style.display = 'block';
   try {
-    // 1. traer libro
+    // 1. bring book
     const bookRes = await fetch(`/api/books?title=${encodeURIComponent(titulo)}`);
-    if (!bookRes.ok) throw new Error('Libro no encontrado');
+    if (!bookRes.ok) throw new Error('Book not found');
     const book = await bookRes.json();
-    // 2. guardar búsqueda en BD
+    // 2. save search in DB
     await fetch(`/api/search?title=${encodeURIComponent(titulo)}&user_id=${currentUserId}`, { method: 'POST' });
-    // 3. mostrar
+    // 3. to show
     result.innerHTML = '';
     result.appendChild(mkCard(book));
-    // 4. refrescar historial
+    // 4. refresh history
     renderHistory();
   } catch (e) {
     result.innerHTML = `<p class="error">${e.message}</p>`;
   }
 }
 
-// ---------- Historial ----------
+// ---------- History ----------
 document.getElementById('clearBtn').onclick = async () => {
   if (!currentUserId) return;
   await fetch(`/api/history?user_id=${currentUserId}`, { method: 'DELETE' });

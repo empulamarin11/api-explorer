@@ -1,4 +1,4 @@
-# Variables de entorno
+# Environment variables
 .env
 
 # Byte-compiled / optimized / Python
@@ -6,7 +6,7 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# Node (por si usas npm en el futuro)
+# Node (in case you use npm in the future)
 node_modules/
 dist/
 
@@ -14,5 +14,5 @@ dist/
 .vscode/
 .idea/
 
-# Docker (opcional, útil si generas volúmenes locales)
+# Docker (optional, useful if you generate local volumes)
 docker-compose.override.yml

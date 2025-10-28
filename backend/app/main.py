@@ -15,7 +15,7 @@ engine = create_engine(SQLALCHEMY_DATABASE_URL, pool_pre_ping=True)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
 
-# ---------- Modelos ----------
+# ---------- Models----------
 class User(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -35,11 +35,11 @@ class Search(Base):
     book_desc_long = Column(Text)
     searched_at = Column(DateTime, default=datetime.utcnow)
 
-# ---------- Crear tablas ----------
+# ---------- Create tables ----------
 Base.metadata.create_all(bind=engine)
 
 # ---------- FastAPI ----------
-app = FastAPI(title="API Explorer – Login simple", version="1.0.0")
+app = FastAPI(title="API Explorer – Login", version="1.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -49,7 +49,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ---------- Dependencias ----------
+# ---------- Dependencies ----------
 def get_db():
     db = SessionLocal()
     try:
@@ -60,25 +60,25 @@ def get_db():
 # ---------- Endpoints ----------
 @app.get("/")
 def root():
-    return {"message": "Backend conectado a PostgreSQL – login simple"}
+    return {"message": "Backend connected to PostgreSQL – login"}
 
 @app.post("/login")
 def login(username: str, password: str, db: Session = Depends(get_db)):
     user = db.query(User).filter(User.username == username).first()
     if not user or user.password != password:   # comparación directa
-        raise HTTPException(status_code=401, detail="Usuario o contraseña incorrectos")
+        raise HTTPException(status_code=401, detail="Incorrect username or password")
     user.logged_at = datetime.utcnow()
     db.commit()
     return {"user_id": user.id, "username": user.username}
 
-@app.post("/register")   # para crear usuarios rápido
+@app.post("/register")   # to  create users
 def register(username: str, password: str, db: Session = Depends(get_db)):
     if db.query(User).filter(User.username == username).first():
-        raise HTTPException(status_code=400, detail="El usuario ya existe")
+        raise HTTPException(status_code=400, detail="The user already exists")
     user = User(username=username, password=password)
     db.add(user)
     db.commit()
-    return {"message": "Usuario creado", "user_id": user.id}
+    return {"message": "User created", "user_id": user.id}
 
 @app.get("/books")
 async def books(title: str):
@@ -86,12 +86,12 @@ async def books(title: str):
     async with httpx.AsyncClient() as client:
         r = await client.get(url)
         if r.status_code != 200 or not r.json().get("items"):
-            raise HTTPException(status_code=404, detail="Libro no encontrado")
+            raise HTTPException(status_code=404, detail="Book not found")
     info = r.json()["items"][0]["volumeInfo"]
-    desc = info.get("description", "Sin descripción")
+    desc = info.get("description", "No description")
     return {
-        "title": info.get("title", "Sin título"),
-        "authors": info.get("authors", ["Anónimo"]),
+        "title": info.get("title", "Untitled"),
+        "authors": info.get("authors", ["Anonymous"]),
         "image": info.get("imageLinks", {}).get("thumbnail", "").replace("http://", "https://"),
         "description_short": desc[:120] + "…" if len(desc) > 120 else desc,
         "description_long": desc,
@@ -99,25 +99,25 @@ async def books(title: str):
 
 @app.post("/search")
 async def search(title: str, user_id: int, db: Session = Depends(get_db)):
-    # comprobar que el usuario existe
+    # check that the user exists
     if not db.query(User).filter(User.id == user_id).first():
-        raise HTTPException(status_code=404, detail="Usuario no encontrado")
-    # traer libro
+        raise HTTPException(status_code=404, detail="User not found")
+    # bring book
     url = f"https://www.googleapis.com/books/v1/volumes?q={title}&maxResults=1"
     async with httpx.AsyncClient() as client:
         r = await client.get(url)
         if r.status_code != 200 or not r.json().get("items"):
             raise HTTPException(status_code=404, detail="Libro no encontrado")
     info = r.json()["items"][0]["volumeInfo"]
-    desc = info.get("description", "Sin descripción")
+    desc = info.get("description", "No description")
     book = {
-        "title": info.get("title", "Sin título"),
-        "authors": info.get("authors", ["Anónimo"]),
+        "title": info.get("title", "Untitled"),
+        "authors": info.get("authors", ["Anonymous"]),
         "image": info.get("imageLinks", {}).get("thumbnail", "").replace("http://", "https://"),
         "description_short": desc[:120] + "…" if len(desc) > 120 else desc,
         "description_long": desc,
     }
-    # guardar búsqueda
+    # save search
     search = Search(
         user_id=user_id,
         title=title,
