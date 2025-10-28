@@ -1,15 +1,27 @@
+
 services:
-  mongo:
-    image: mongo:6
+  postgres:
+    image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      MONGO_INITDB_ROOT_USERNAME: devuser
-      MONGO_INITDB_ROOT_PASSWORD: devpass
-      MONGO_INITDB_DATABASE: apiexplorer
+      POSTGRES_DB: explorer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: erick123
     volumes:
-      - mongo_data:/data/db
+      - pg_data:/var/lib/postgresql/data
     ports:
-      - "27017:27017"
+      - "5432:5432"
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@localhost.com
+      PGADMIN_DEFAULT_PASSWORD: admin
+    ports:
+      - "5050:5050"
+    depends_on:
+      - postgres
 
   backend:
     build: ./backend
@@ -17,7 +29,7 @@ services:
     ports:
       - "8000:8000"
     depends_on:
-      - mongo
+      - postgres
 
   frontend:
     build: ./frontend
@@ -27,4 +39,4 @@ services:
       - backend
 
 volumes:
-  mongo_data:
+  pg_data:
